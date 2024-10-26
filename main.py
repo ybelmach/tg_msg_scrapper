@@ -3,85 +3,108 @@ from datetime import datetime
 
 from db.models import Channels
 from db.database import get_db
-
+from db.services import ChannelService, MessageService
+from utils import find_last_message, get_summarized_msg
+from schemas import Channel, Message
 import requests
 from bs4 import BeautifulSoup
+import logging
 
-from db.services import updating_id, adding_msg
-from schemas import Channel, Message
-from utils import find_last_message, find_bad_msgs, get_bad_msg_text, get_summarized_msg
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-try:
-    with next(get_db()) as db:
-        channels = db.query(Channels).all()
-except Exception as e:
-    print(f"Error: {e}")
-for channel in channels:
+
+def process_channel(db, channel):
     try:
         url = f"https://t.me/s/{channel.telegram_name}"
         response = requests.get(url)
+        response.raise_for_status()  # Проверка статуса ответа
+        soup = BeautifulSoup(response.text, 'lxml')
+        logger.info(f"Processing URL: {url}")
+
+        if channel.last_message_id is None:
+            process_last_message(db, channel, soup)
+            # Отображение последних 3 в дайджесте
+        else:
+            process_new_messages(db, channel, soup)
+
+    except requests.RequestException as e:
+        logger.error(f"Connection error: {e}")
     except Exception as e:
-        raise f"Connection error: {e}"
-    soup = BeautifulSoup(response.text, 'html.parser')
-    print(url)
+        logger.error(f"Error processing channel {channel.telegram_name}: {e}")
 
-    if channel.last_message_id is None:
-        try:
-            last_message_id = find_last_message(soup)
-        except Exception as e:
-            raise f"Error with parsing last message id: {e}"
 
-        # Добавление id в БД
-        data = Channel(id=channel.id, telegram_id=channel.telegram_id, telegram_name=channel.telegram_name,
-                       created_at=channel.created_at, last_message_id=last_message_id)
-        try:
-            updating_id(db, data)
-        except Exception as e:
-            raise f"Error with writing to database: {e}"
-        print("Writing id to database successfully.")
+def process_last_message(db, channel, soup):
+    try:
+        last_message_id = find_last_message(soup)
+        data = Channel(id=channel.id, telegram_id=channel.telegram_id,
+                       telegram_name=channel.telegram_name, created_at=channel.created_at,
+                       last_message_id=last_message_id)
+        ChannelService.update_channel_id(db, data)
+        logger.info("Last message ID added to database successfully.")
+    except Exception as e:
+        logger.error(f"Error parsing or updating last message ID: {e}")
 
-        # Отображение последних 3 в дайджесте
 
-    else:
-        messages = soup.find_all('div', class_='tgme_widget_message_text js-message_text')
+def process_new_messages(db, channel, soup):
+    try:
         last_public_message_id = find_last_message(soup)
-        last_message_id = channel.last_message_id
-        messages_number = last_public_message_id - last_message_id
-
+        messages = soup.find_all('div', class_='tgme_widget_message_text js-message_text')
         messages_to_summarize = []
-        # bad_numbers: List[int] = find_bad_msgs(soup)
-        # for number in bad_numbers:
-        #     bad_msg_text = get_bad_msg_text(number, msg_url)
-        #     messages_to_summarize.append(bad_msg_text)
 
-        for i in range(1, messages_number + 1):
-            temp = ()
+        for i in range(1, last_public_message_id - channel.last_message_id + 1):
             msg = messages[-i].get_text()
-            messages_to_summarize.append((last_message_id + i, msg))
-            print(f"\t[{last_message_id + i}]: {msg}")
+            messages_to_summarize.append((channel.last_message_id + i, msg))
+            # Реализовать выявление плохих сообщений и их добавление в messages_to_summarize
+            # bad_numbers: List[int] = find_bad_msgs(soup)
+            # for number in bad_numbers:
+            #     bad_msg_text = get_bad_msg_text(number, msg_url)
+            #     messages_to_summarize.append(bad_msg_text)
+            logger.info(f"New message [{channel.last_message_id + i}]: {msg}")
 
-        if len(messages_to_summarize) > 0:
-            # Добавление id в БД
-            data = Channel(id=channel.id, telegram_id=channel.telegram_id, telegram_name=channel.telegram_name,
-                           created_at=channel.created_at, last_message_id=last_public_message_id)
-            try:
-                updating_id(db, data)
-            except Exception as e:
-                raise f"Error with writing to database: {e}"
-            print("Writing id to database successfully.")
+        if messages_to_summarize:
+            update_last_message_id(db, channel, last_public_message_id)
+            summarize_and_save_messages(db, channel, messages_to_summarize)
 
-            for element in messages_to_summarize:
-                # Суммаризация сообщений
-                msg_id, msg = element[0], element[1]
-                summarized_msg = get_summarized_msg(msg)
-                print(f"\t[{msg_id}]: {summarized_msg}")
-                msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
+    except Exception as e:
+        logger.error(f"Error processing new messages for channel {channel.telegram_name}: {e}")
 
-                # Добавление сообщения в БД
-                data = Message(id=str(uuid.uuid4()), telegram_id=msg_id, created_at=datetime.now(),
-                               summary=summarized_msg, uri=msg_url, channel_id=channel.id)
-                try:
-                    adding_msg(db, data)
-                except Exception as e:
-                    raise f"Error with writing to database: {e}"
-                print("Writing summarized message to database successfully.")
+
+def update_last_message_id(db, channel, last_public_message_id):
+    try:
+        data = Channel(id=channel.id, telegram_id=channel.telegram_id, telegram_name=channel.telegram_name,
+                       created_at=channel.created_at, last_message_id=last_public_message_id)
+        ChannelService.update_channel_id(db, data)
+        logger.info("Last message ID updated successfully.")
+    except Exception as e:
+        logger.error(f"Error updating last message ID: {e}")
+
+
+def summarize_and_save_messages(db, channel, messages_to_summarize):
+    for msg_id, msg in messages_to_summarize:
+        try:
+            summarized_msg = get_summarized_msg(msg)
+            msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
+            message_data = Message(id=str(uuid.uuid4()), telegram_id=msg_id, created_at=datetime.now(),
+                                   summary=summarized_msg, uri=msg_url, channel_id=channel.id)
+            MessageService.add_message(db, message_data)
+            logger.info(f"Message [{msg_id}] summarized and saved to database.")
+        except Exception as e:
+            logger.error(f"Error summarizing or saving message [{msg_id}]: {e}")
+
+
+def main():
+    try:
+        with next(get_db()) as db:
+            channels = db.query(Channels).all()
+    except Exception as e:
+        logger.error(f"Error fetching channels from database: {e}")
+        return
+
+    for channel in channels:
+        process_channel(db, channel)
+
+
+if __name__ == "__main__":
+    main()
