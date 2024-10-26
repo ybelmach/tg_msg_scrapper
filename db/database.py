@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import DB_PORT, DB_NAME, DB_PASS, DB_USER, DB_HOST
@@ -30,6 +29,5 @@ def get_db():
         yield db
     except Exception as e:
         logger.error(f"Database session error: {e}")
-        raise
     finally:
         db.close()

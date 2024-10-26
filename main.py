@@ -1,3 +1,4 @@
+import time
 import uuid
 from datetime import datetime
 
@@ -25,7 +26,7 @@ def process_channel(db, channel):
 
         if channel.last_message_id is None:
             process_last_message(db, channel, soup)
-            # Отображение последних 3 в дайджесте
+            # Отображение последних 3 (MSG_NUM) в дайджесте
         else:
             process_new_messages(db, channel, soup)
 
@@ -100,10 +101,22 @@ def main():
             channels = db.query(Channels).all()
     except Exception as e:
         logger.error(f"Error fetching channels from database: {e}")
-        return
+    while True:
+        try:
+            logging.info("Starting a task...")
+            # Вызов основной логики
+            for channel in channels:
+                process_channel(db, channel)
+        except Exception as e:
+            logging.error(f"Task execution error: {e}")
 
-    for channel in channels:
-        process_channel(db, channel)
+        logging.info("Waiting for next launch in 1 hour...")
+        time.sleep(900)
+        logging.info("45 minutes left...")
+        time.sleep(900)
+        logging.info("30 minutes left...")
+        time.sleep(900)
+        logging.info("15 minutes left...")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,10 @@
+import logging
+
 from db.models import Channels, Messages
 from schemas import Channel, Message
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 class ChannelService:
@@ -7,7 +12,7 @@ class ChannelService:
     def update_channel_id(db, data: Channel):
         post_query = db.query(Channels).filter(Channels.id == str(data.id))  # Убрать str
         if post_query.first() is None:
-            raise Exception(f"Channel {data.id} not found")
+            logger.error(f"Channel {data.id} not found")
         post_query.update(data.model_dump(), synchronize_session=False)
         db.commit()
 

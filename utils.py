@@ -6,11 +6,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def find_last_message(soup: BeautifulSoup) -> int:
     """
     Ищет последний ID сообщения на странице.
     """
     try:
+        last_message_id = 0
         messages = soup.find_all('div', class_='tgme_widget_message')
         if messages:
             last_message = messages[-1]
@@ -18,14 +20,12 @@ def find_last_message(soup: BeautifulSoup) -> int:
                 last_message_id = last_message['data-post'].split('/')[-1]
                 logger.info(f"Last message ID found: {last_message_id}")
             else:
-                raise ValueError("Attribute 'data-post' not found in the last message.")
+                logger.error("Attribute 'data-post' not found in the last message.")
         else:
-            last_message_id = 0
-            raise ValueError("No messages found.")
+            logger.info("No messages found.")
         return int(last_message_id)
     except Exception as e:
         logger.error(f"Error finding the last message: {e}")
-        raise
 
 
 def find_bad_msgs(soup: BeautifulSoup):
@@ -49,7 +49,6 @@ def find_bad_msgs(soup: BeautifulSoup):
         return message_ids
     except Exception as e:
         logger.error(f"Error finding bad messages: {e}")
-        raise
 
 
 # Доделать
@@ -68,10 +67,8 @@ def get_bad_msg_text(msg_id: int, msg_url: str) -> str:
         #     print(f"\t[{i}]: {msg}")
     except requests.RequestException as e:
         logger.error(f"Connection error while fetching message {msg_id}: {e}")
-        raise
     except Exception as e:
         logger.error(f"Error parsing message {msg_id}: {e}")
-        raise
 
 
 def get_summarized_msg(msg: str) -> str:
@@ -90,7 +87,7 @@ def get_summarized_msg(msg: str) -> str:
         """
 
         response = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt,}],
+            messages=[{"role": "user", "content": prompt, }],
             model="gpt-4o-mini",
         )
 
@@ -99,4 +96,3 @@ def get_summarized_msg(msg: str) -> str:
         return summarized_message
     except Exception as e:
         logger.error(f"Error summarizing message: {e}")
-        raise

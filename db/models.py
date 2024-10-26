@@ -25,11 +25,3 @@ class Messages(Base):
     summary: Mapped[str] = mapped_column(nullable=False)
     uri: Mapped[str] = mapped_column(nullable=True)
     channel_id: Mapped[str] = mapped_column(ForeignKey('channels.id'), nullable=True)
-
-# {'url': 'https://t.me/s/frontendproglib', 'last_msg_id': 'null', 'tags_for_response': []},
-# {'url': 'https://t.me/s/python_ready', 'last_msg_id': 'null', 'tags_for_response': []},
-# {'url': 'https://t.me/s/bezsmuzi', 'last_msg_id': 'null', 'tags_for_response': []},
-# {'url': 'https://t.me/s/black_triangle_tg', 'last_msg_id': 'null', 'tags_for_response': []},
-# {'url': 'https://t.me/s/fitu_bsuir', 'last_msg_id': 'null', 'tags_for_response': []},
-# {'url': 'https://t.me/s/prepodsteam', 'last_msg_id': 'null', 'tags_for_response': []},
-# https://t.me/s/frontendproglib
