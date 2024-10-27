@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class ChannelService:
     @staticmethod
     def update_channel_id(db, data: Channel):
-        post_query = db.query(Channels).filter(Channels.id == str(data.id))  # Убрать str
+        post_query = db.query(Channels).filter(Channels.id == data.id)
         if post_query.first() is None:
             logger.error(f"Channel {data.id} not found")
         post_query.update(data.model_dump(), synchronize_session=False)

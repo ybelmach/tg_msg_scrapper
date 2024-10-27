@@ -2,6 +2,7 @@ import time
 import uuid
 from datetime import datetime
 
+from config import MAX_WORDS_NUM
 from db.models import Channels
 from db.database import get_db
 from db.services import ChannelService, MessageService
@@ -39,8 +40,7 @@ def process_channel(db, channel):
 def process_last_message(db, channel, soup):
     try:
         last_message_id = find_last_message(soup)
-        data = Channel(id=channel.id, telegram_id=channel.telegram_id,
-                       telegram_name=channel.telegram_name, created_at=channel.created_at,
+        data = Channel(id=channel.id, telegram_id=None, telegram_name=channel.telegram_name, created_at=channel.created_at,
                        last_message_id=last_message_id)
         ChannelService.update_channel_id(db, data)
         logger.info("Last message ID added to database successfully.")
@@ -56,7 +56,19 @@ def process_new_messages(db, channel, soup):
 
         for i in range(1, last_public_message_id - channel.last_message_id + 1):
             msg = messages[-i].get_text()
-            messages_to_summarize.append((channel.last_message_id + i, msg))
+            words_num = len(msg.split())
+            if words_num < MAX_WORDS_NUM:
+                summarized_msg, msg_id = msg, channel.last_message_id + i
+                try:
+                    msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
+                    message_data = Message(id=uuid.uuid4(), created_at=datetime.now(), summary=summarized_msg,
+                                           url=msg_url, channel_id=channel.id)
+                    MessageService.add_message(db, message_data)
+                    logger.info(f"Message [{msg_id}] saved to database without summarizing.")
+                except Exception as e:
+                    logger.error(f"Error saving message without summarizing [{msg_id}]: {e}")
+            else:
+                messages_to_summarize.append((channel.last_message_id + i, msg))
             # Реализовать выявление плохих сообщений и их добавление в messages_to_summarize
             # bad_numbers: List[int] = find_bad_msgs(soup)
             # for number in bad_numbers:
@@ -65,8 +77,8 @@ def process_new_messages(db, channel, soup):
             logger.info(f"New message [{channel.last_message_id + i}]: {msg}")
 
         if messages_to_summarize:
-            update_last_message_id(db, channel, last_public_message_id)
             summarize_and_save_messages(db, channel, messages_to_summarize)
+            update_last_message_id(db, channel, last_public_message_id)
 
     except Exception as e:
         logger.error(f"Error processing new messages for channel {channel.telegram_name}: {e}")
@@ -74,8 +86,8 @@ def process_new_messages(db, channel, soup):
 
 def update_last_message_id(db, channel, last_public_message_id):
     try:
-        data = Channel(id=channel.id, telegram_id=channel.telegram_id, telegram_name=channel.telegram_name,
-                       created_at=channel.created_at, last_message_id=last_public_message_id)
+        data = Channel(id=channel.id, telegram_name=channel.telegram_name, created_at=channel.created_at,
+                       last_message_id=last_public_message_id)
         ChannelService.update_channel_id(db, data)
         logger.info("Last message ID updated successfully.")
     except Exception as e:
@@ -87,8 +99,8 @@ def summarize_and_save_messages(db, channel, messages_to_summarize):
         try:
             summarized_msg = get_summarized_msg(msg)
             msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
-            message_data = Message(id=str(uuid.uuid4()), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, uri=msg_url, channel_id=channel.id)
+            message_data = Message(id=uuid.uuid4(), created_at=datetime.now(), summary=summarized_msg, url=msg_url,
+                                   channel_id=channel.id)
             MessageService.add_message(db, message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
         except Exception as e:

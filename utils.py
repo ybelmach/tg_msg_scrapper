@@ -69,6 +69,7 @@ def get_bad_msg_text(msg_id: int, msg_url: str) -> str:
         logger.error(f"Connection error while fetching message {msg_id}: {e}")
     except Exception as e:
         logger.error(f"Error parsing message {msg_id}: {e}")
+    return 'test'
 
 
 def get_summarized_msg(msg: str) -> str:
