@@ -40,7 +40,7 @@ def process_channel(db, channel):
 def process_last_message(db, channel, soup):
     try:
         last_message_id = find_last_message(soup)
-        data = Channel(id=channel.id, telegram_id=None, telegram_name=channel.telegram_name, created_at=channel.created_at,
+        data = Channel(id=channel.id, telegram_name=channel.telegram_name, created_at=channel.created_at,
                        last_message_id=last_message_id)
         ChannelService.update_channel_id(db, data)
         logger.info("Last message ID added to database successfully.")
@@ -61,7 +61,7 @@ def process_new_messages(db, channel, soup):
                 summarized_msg, msg_id = msg, channel.last_message_id + i
                 try:
                     msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
-                    message_data = Message(id=uuid.uuid4(), created_at=datetime.now(), summary=summarized_msg,
+                    message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(), summary=summarized_msg,
                                            url=msg_url, channel_id=channel.id)
                     MessageService.add_message(db, message_data)
                     logger.info(f"Message [{msg_id}] saved to database without summarizing.")
@@ -99,7 +99,7 @@ def summarize_and_save_messages(db, channel, messages_to_summarize):
         try:
             summarized_msg = get_summarized_msg(msg)
             msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
-            message_data = Message(id=uuid.uuid4(), created_at=datetime.now(), summary=summarized_msg, url=msg_url,
+            message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(), summary=summarized_msg, url=msg_url,
                                    channel_id=channel.id)
             MessageService.add_message(db, message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
