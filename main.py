@@ -13,7 +13,8 @@ from bs4 import BeautifulSoup
 import logging
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, filename='summarizer_log.log',
+                    filemode='w', format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 
