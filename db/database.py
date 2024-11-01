@@ -1,10 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import DB_PORT, DB_NAME, DB_PASS, DB_USER, DB_HOST
-import logging
-
-# Настройка логирования
-logger = logging.getLogger(__name__)
+from logging_config import logger
 
 # Создание DSN (Data Source Name) для подключения к базе данных PostgreSQL
 DSN = f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
