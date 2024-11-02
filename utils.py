@@ -2,12 +2,10 @@ import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from config import OPENAI_API_KEY
-import logging
-
-logger = logging.getLogger(__name__)
+from logging_config import logger
 
 
-def find_last_message(soup: BeautifulSoup) -> int:
+def find_last_message(soup: BeautifulSoup, channel) -> int:
     """
     Ищет последний ID сообщения на странице.
     """
@@ -49,6 +47,44 @@ def find_bad_msgs(soup: BeautifulSoup):
         return message_ids
     except Exception as e:
         logger.error(f"Error finding bad messages: {e}")
+
+
+def get_photos_num(soup, start_id: int | None = None, msg_id: int = 0) -> int:
+    logger.info(f"Starting finding numbers of images...")
+
+    messages = soup.find_all('div', class_='tgme_widget_message')
+    if messages:
+        photos_num = 0
+        for message in messages:
+            if 'data-post' in message.attrs:
+                message_id = int(message['data-post'].split('/')[-1])
+                if start_id:
+                    if start_id > message_id:
+                        continue
+                    current_photo_num = len(message.find_all(
+                        "a",
+                        class_='tgme_widget_message_photo_wrap grouped_media_wrap blured js-message_photo'
+                    ))
+                    photos_num += current_photo_num - 1
+                    logger.info(f"Additional photos number in message {message_id}: {current_photo_num}")
+                else:
+                    if msg_id == message_id:
+                        photo_num = len(message.find_all(
+                            "a",
+                            class_='tgme_widget_message_photo_wrap grouped_media_wrap blured js-message_photo'
+                        )) - 1
+                        if photo_num < 0:
+                            photo_num = 0
+                        logger.info(f"Additional photos number in one message ({msg_id}): {photo_num}")
+                        return photo_num
+            else:
+                logger.error("Attribute 'data-post' not found in the last message.")
+        if photos_num < 0:
+            photos_num = 0
+        logger.info(f"Additional photos number: {photos_num}")
+        return photos_num
+    else:
+        logger.info("No messages found.")
 
 
 # Доделать

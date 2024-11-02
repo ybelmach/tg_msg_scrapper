@@ -7,7 +7,7 @@ from db.models import Channels
 from db.database import get_db
 from db.services import ChannelService, MessageService
 from logging_config import logger
-from utils import find_last_message, get_summarized_msg
+from utils import find_last_message, get_summarized_msg, get_photos_num
 from schemas import Channel, Message
 import requests
 from bs4 import BeautifulSoup
@@ -35,7 +35,17 @@ def process_channel(db, channel):
 
 def process_last_message(db, channel, soup):
     try:
-        last_message_id = find_last_message(soup)
+        last_message_id = find_last_message(soup, channel)
+        if channel.last_message_id:
+            photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id)
+        else:
+            photos_num = get_photos_num(soup=soup, start_id=int(last_message_id))
+        if photos_num:
+            logger.info(f"Photos found: {photos_num}")
+            last_message_id += photos_num
+            print(f"Photos found: {photos_num}")
+        else:
+            logger.info("No photos found.")
         data = Channel(id=channel.id, telegram_name=channel.telegram_name, created_at=channel.created_at,
                        last_message_id=last_message_id)
         ChannelService.update_channel_id(db, data)
@@ -46,29 +56,40 @@ def process_last_message(db, channel, soup):
 
 def process_new_messages(db, channel, soup):
     try:
-        last_public_message_id = find_last_message(soup)
+        last_public_message_id = find_last_message(soup, channel)
         messages = soup.find_all('div', class_='tgme_widget_message_text js-message_text')
         messages_to_summarize = []
         logger.info(f"Last message in DB: {channel.last_message_id}, new last message: {last_public_message_id}")
+        # msg_ids = [channel.last_message_id + 1], channel.last_message_id + 1 +photos_num(channel.last_message_id + 1)]
+        if last_public_message_id > channel.last_message_id:
+            msg_ids = [channel.last_message_id + 1]
+            photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id + 1)
+            for i in range(1, last_public_message_id - channel.last_message_id - photos_num - 1):
+                msg_ids.append(msg_ids[-1] + 1 + get_photos_num(soup=soup, msg_id=msg_ids[-1]))
 
-        for i in range(1, last_public_message_id - channel.last_message_id + 1):
-            msg = messages[-i].get_text()
-            words_num = len(msg.split())
-            if words_num < MAX_WORDS_NUM:
-                continue
-            else:
-                messages_to_summarize.append((channel.last_message_id + i, msg))
-            # Реализовать выявление плохих сообщений и их добавление в messages_to_summarize
-            # bad_numbers: List[int] = find_bad_msgs(soup)
-            # for number in bad_numbers:
-            #     bad_msg_text = get_bad_msg_text(number, msg_url)
-            #     messages_to_summarize.append(bad_msg_text)
-            logger.info(f"New message [{channel.last_message_id + i}]: {msg}")
+            for i, msg_id in enumerate(msg_ids):
+                msg = messages[-i].get_text()
+
+                words_num = len(msg.split())
+                if words_num < MAX_WORDS_NUM:
+                    logger.info(f"Message {msg_id} didn't add to DB (words_num={words_num})")
+                    update_last_message_id(db, channel, last_public_message_id)
+                    continue
+                else:
+                    messages_to_summarize.append((msg_id, msg))
+                # Реализовать выявление плохих сообщений и их добавление в messages_to_summarize
+                # bad_numbers: List[int] = find_bad_msgs(soup)
+                # for number in bad_numbers:
+                #     bad_msg_text = get_bad_msg_text(number, msg_url)
+                #     messages_to_summarize.append(bad_msg_text)
+                logger.info(f"New message [{msg_id}]: {msg}")
 
         if messages_to_summarize:
-            process = update_last_message_id(db, channel, last_public_message_id)
+            process = summarize_and_save_messages(db, channel, messages_to_summarize)
             if process:
-                summarize_and_save_messages(db, channel, messages_to_summarize)
+                update_last_message_id(db, channel, last_public_message_id)
+            else:
+                logger.error(f"Message didn't save correctly, skipping summarizing")
 
     except Exception as e:
         logger.error(f"Error processing new messages for channel {channel.telegram_name}: {e}")
@@ -91,12 +112,12 @@ def summarize_and_save_messages(db, channel, messages_to_summarize):
             summarized_msg = get_summarized_msg(msg)
             msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
             message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, url=msg_url,
-                                   channel_id=channel.id)
+                                   summary=summarized_msg, url=msg_url, channel_id=channel.id)
             MessageService.add_message(db, message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
         except Exception as e:
             logger.error(f"Error summarizing or saving message [{msg_id}]: {e}")
+    return True
 
 
 def main():
@@ -107,20 +128,21 @@ def main():
         logger.error(f"Error fetching channels from database: {e}")
     while True:
         try:
-            logging.info("Starting a task...")
+            logger.info("Starting a task...")
             # Вызов основной логики
             for channel in channels:
                 process_channel(db, channel)
+                print()  #
         except Exception as e:
-            logging.error(f"Task execution error: {e}")
+            logger.error(f"Task execution error: {e}")
 
-        logging.info("Waiting for next launch in 1 hour...")
+        logger.info("Waiting for next launch in 1 hour...")
         time.sleep(900)
-        logging.info("45 minutes left...")
+        logger.info("45 minutes left...")
         time.sleep(900)
-        logging.info("30 minutes left...")
+        logger.info("30 minutes left...")
         time.sleep(900)
-        logging.info("15 minutes left...")
+        logger.info("15 minutes left...")
 
 
 if __name__ == "__main__":

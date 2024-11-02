@@ -2,9 +2,7 @@ import logging
 
 from db.models import Channels, Messages
 from schemas import Channel, Message
-
-# Настройка логирования
-logger = logging.getLogger(__name__)
+from logging_config import logger
 
 
 class ChannelService:
