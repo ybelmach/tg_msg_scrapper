@@ -36,14 +36,11 @@ def process_channel(db, channel):
 def process_last_message(db, channel, soup):
     try:
         last_message_id = find_last_message(soup, channel)
-        if channel.last_message_id:
-            photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id)
-        else:
-            photos_num = get_photos_num(soup=soup, start_id=int(last_message_id))
+        photos_num = get_photos_num(soup=soup, start_id=last_message_id)
         if photos_num:
             logger.info(f"Photos found: {photos_num}")
             last_message_id += photos_num
-            print(f"Photos found: {photos_num}")
+            # print(f"Photos found: {photos_num}")
         else:
             logger.info("No photos found.")
         data = Channel(id=channel.id, telegram_name=channel.telegram_name, created_at=channel.created_at,
@@ -62,18 +59,32 @@ def process_new_messages(db, channel, soup):
         logger.info(f"Last message in DB: {channel.last_message_id}, new last message: {last_public_message_id}")
         # msg_ids = [channel.last_message_id + 1], channel.last_message_id + 1 +photos_num(channel.last_message_id + 1)]
         if last_public_message_id > channel.last_message_id:
-            msg_ids = [channel.last_message_id + 1]
-            photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id + 1)
-            for i in range(1, last_public_message_id - channel.last_message_id - photos_num - 1):
-                msg_ids.append(msg_ids[-1] + 1 + get_photos_num(soup=soup, msg_id=msg_ids[-1]))
 
-            for i, msg_id in enumerate(msg_ids):
-                msg = messages[-i].get_text()
+            msg_ids = []
+            photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id + 1)
+            for i in range(last_public_message_id - channel.last_message_id - photos_num):
+                if i != 0:
+                    current_id = msg_ids[-1][0] + msg_ids[-1][1] + 1
+                    photo_num = get_photos_num(soup=soup, msg_id=current_id)
+                    msg_ids.append((current_id, photo_num))
+                else:
+                    photo_num = get_photos_num(soup=soup, msg_id=channel.last_message_id + 1)
+                    msg_ids.append((channel.last_message_id + 1, photo_num))
+            msg_ids.reverse()
+            logger.info(f"New messages id's: {msg_ids}")
+
+            prev_photo_nums = 0
+            for i, msg_ids_tuple in enumerate(msg_ids):
+                msg_id, photo_num = msg_ids_tuple
+                if i != 0:
+                    prev_photo_nums += msg_ids[i-1][1]
+                index = -(i+1+prev_photo_nums)
+                msg = messages[index].get_text()
 
                 words_num = len(msg.split())
-                if words_num < MAX_WORDS_NUM:
+                if words_num < MAX_WORDS_NUM:  #
                     logger.info(f"Message {msg_id} didn't add to DB (words_num={words_num})")
-                    update_last_message_id(db, channel, last_public_message_id)
+                    # update_last_message_id(db, channel, last_public_message_id)  # + photo_num
                     continue
                 else:
                     messages_to_summarize.append((msg_id, msg))
@@ -82,7 +93,7 @@ def process_new_messages(db, channel, soup):
                 # for number in bad_numbers:
                 #     bad_msg_text = get_bad_msg_text(number, msg_url)
                 #     messages_to_summarize.append(bad_msg_text)
-                logger.info(f"New message [{msg_id}]: {msg}")
+                logger.info(f"New message [{msg_id}] added to list: {msg}")
 
         if messages_to_summarize:
             process = summarize_and_save_messages(db, channel, messages_to_summarize)

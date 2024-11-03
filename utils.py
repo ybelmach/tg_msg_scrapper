@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
-from config import OPENAI_API_KEY
+from config import OPENAI_API_KEY, MAX_WORDS_NUM
 from logging_config import logger
 
 
@@ -65,22 +65,22 @@ def get_photos_num(soup, start_id: int | None = None, msg_id: int = 0) -> int:
                         "a",
                         class_='tgme_widget_message_photo_wrap grouped_media_wrap blured js-message_photo'
                     ))
-                    photos_num += current_photo_num - 1
-                    logger.info(f"Additional photos number in message {message_id}: {current_photo_num}")
+                    if current_photo_num > 1:
+                        photos_num += current_photo_num - 1
+                        logger.info(f"Found additional photos number in message {message_id}: {current_photo_num - 1}")
                 else:
                     if msg_id == message_id:
                         photo_num = len(message.find_all(
                             "a",
                             class_='tgme_widget_message_photo_wrap grouped_media_wrap blured js-message_photo'
-                        )) - 1
-                        if photo_num < 0:
-                            photo_num = 0
-                        logger.info(f"Additional photos number in one message ({msg_id}): {photo_num}")
-                        return photo_num
+                        ))
+                        if photo_num > 1:
+                            logger.info(f"Found additional photos number in one message {msg_id}: {photo_num - 1}")
+                            return photo_num - 1
+                        else:
+                            return 0
             else:
                 logger.error("Attribute 'data-post' not found in the last message.")
-        if photos_num < 0:
-            photos_num = 0
         logger.info(f"Additional photos number: {photos_num}")
         return photos_num
     else:
@@ -114,10 +114,12 @@ def get_summarized_msg(msg: str) -> str:
     """
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        prompt = f"""Представь что ты копирайтер.
-        Я предоставлю тебе текст сообщения, а ты должен выделить из него главное размером до 10 слов.
-        В ответе предоставь только результат.
-    
+        prompt = f"""ты копирайтер.
+        напиши краткое содержание этого сообщения.
+        объем краткого содержания примерно {MAX_WORDS_NUM} слов.
+        краткое содержание должно отражать суть сообщение, должно быть правдивым и давать понимание о том,
+        что написано в сообщении.
+        
         <message>
         {msg}
         </message>
