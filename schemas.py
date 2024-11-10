@@ -19,3 +19,4 @@ class Message(BaseModel):
     summary: str
     url: str
     channel_id: uuid.UUID
+    sended_at: datetime.datetime

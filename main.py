@@ -7,7 +7,7 @@ from db.models import Channels
 from db.database import get_db
 from db.services import ChannelService, MessageService
 from logging_config import logger
-from utils import find_last_message, get_summarized_msg, get_photos_num
+from utils import find_last_message, get_summarized_msg, get_photos_num, get_time
 from schemas import Channel, Message
 import requests
 from bs4 import BeautifulSoup
@@ -96,7 +96,7 @@ def process_new_messages(db, channel, soup):
                 logger.info(f"New message [{msg_id}] added to list: {msg}")
 
         if messages_to_summarize:
-            process = summarize_and_save_messages(db, channel, messages_to_summarize)
+            process = summarize_and_save_messages(db, channel, messages_to_summarize, soup)
             if process:
                 update_last_message_id(db, channel, last_public_message_id)
             else:
@@ -117,13 +117,14 @@ def update_last_message_id(db, channel, last_public_message_id):
         logger.error(f"Error updating last message ID: {e}")
 
 
-def summarize_and_save_messages(db, channel, messages_to_summarize):
-    for msg_id, msg in messages_to_summarize:
+def summarize_and_save_messages(db, channel, messages_to_summarize, soup):
+    for photo_num, msg_id, msg in messages_to_summarize:
         try:
             summarized_msg = get_summarized_msg(msg)
             msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
+            msg_time = get_time(soup=soup, save_msg_id=msg_id-photo_num)
             message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, url=msg_url, channel_id=channel.id)
+                                   summary=summarized_msg, url=msg_url, channel_id=channel.id, sended_at=msg_time)
             MessageService.add_message(db, message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
         except Exception as e:

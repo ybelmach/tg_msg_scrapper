@@ -19,7 +19,16 @@ class MessageService:
     @staticmethod
     def add_message(db, data: Message):
         new_message = Messages(**data.model_dump())
-        db.add(new_message)
-        db.commit()
-        db.refresh(new_message)
-        return new_message
+
+        telegram_ids = [i.telegram_id for i in MessageService.get_messages(db)]
+        if data.telegram_id not in telegram_ids:
+            db.add(new_message)
+            db.commit()
+            db.refresh(new_message)
+            return new_message
+        else:
+            logger.error(f"Message {data.telegram_id} already exists, skipping saving")
+
+    @staticmethod
+    def get_messages(db):
+        return db.query(Messages).all()

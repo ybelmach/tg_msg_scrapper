@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import requests
 from bs4 import BeautifulSoup
 from openai import OpenAI
@@ -114,11 +116,10 @@ def get_summarized_msg(msg: str) -> str:
     """
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        prompt = f"""ты копирайтер.
-        напиши краткое содержание этого сообщения.
-        объем краткого содержания примерно {MAX_WORDS_NUM} слов.
-        краткое содержание должно отражать суть сообщение, должно быть правдивым и давать понимание о том,
-        что написано в сообщении.
+        prompt = f"""Ты копирайтер.
+        напиши краткое содержание этого сообщения, исключая ссылки и упоминание источника или контекста отправки.
+        Объем краткого содержания до {MAX_WORDS_NUM} слов, краткое содержание должно отражать суть сообщение,
+        должно быть правдивым и давать понимание о том, что написано в сообщении.
         
         <message>
         {msg}
@@ -135,3 +136,15 @@ def get_summarized_msg(msg: str) -> str:
         return summarized_message
     except Exception as e:
         logger.error(f"Error summarizing message: {e}")
+
+
+def get_time(soup: BeautifulSoup, save_msg_id: int) -> datetime:
+    times, msg_ids = [], []
+    if soup:
+        times = [i.get('datetime') for i in soup.find_all(class_='time') if 'datetime' in i.attrs]
+        msg_ids = [int(i.get('data-post').split('/')[-1]) for i in soup.find_all(class_='tgme_widget_message')
+                   if 'data-post' in i.attrs]
+    if times and msg_ids:
+        for time, msg_id in zip(times, msg_ids):
+            if msg_id == save_msg_id:
+                return datetime.fromisoformat(time)
