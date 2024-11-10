@@ -26,4 +26,4 @@ class Messages(Base):
     summary: Mapped[str] = mapped_column(nullable=False)
     url: Mapped[str] = mapped_column(nullable=True)
     channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('channels.id'), nullable=True)
-    sended_at = Mapped[datetime.datetime] = mapped_column(nullable=False)
+    sended_at: Mapped[datetime.datetime] = mapped_column(nullable=False)
