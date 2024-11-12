@@ -5,10 +5,10 @@ from datetime import datetime
 from config import MAX_WORDS_NUM
 from db.models import Channels
 from db.database import get_db
-from db.services import ChannelService, MessageService
+from db.services import ChannelService, MessageService, WrappedUrlService
 from logging_config import logger
 from utils import find_last_message, get_summarized_msg, get_photos_num, get_time
-from schemas import Channel, Message
+from schemas import Channel, Message, WrappedUrl
 import requests
 from bs4 import BeautifulSoup
 
@@ -17,7 +17,7 @@ def process_channel(db, channel):
     try:
         url = f"https://t.me/s/{channel.telegram_name}"
         response = requests.get(url)
-        response.raise_for_status()  # Проверка статуса ответа
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, 'lxml')
         logger.info(f"Processing URL: {url}")
 
@@ -40,7 +40,6 @@ def process_last_message(db, channel, soup):
         if photos_num:
             logger.info(f"Photos found: {photos_num}")
             last_message_id += photos_num
-            # print(f"Photos found: {photos_num}")
         else:
             logger.info("No photos found.")
         data = Channel(id=channel.id, telegram_name=channel.telegram_name, created_at=channel.created_at,
@@ -57,19 +56,21 @@ def process_new_messages(db, channel, soup):
         messages = soup.find_all('div', class_='tgme_widget_message_text js-message_text')
         messages_to_summarize = []
         logger.info(f"Last message in DB: {channel.last_message_id}, new last message: {last_public_message_id}")
-        # msg_ids = [channel.last_message_id + 1], channel.last_message_id + 1 +photos_num(channel.last_message_id + 1)]
         if last_public_message_id > channel.last_message_id:
 
             msg_ids = []
             photos_num = get_photos_num(soup=soup, start_id=channel.last_message_id + 1)
-            for i in range(last_public_message_id - channel.last_message_id - photos_num):
-                if i != 0:
-                    current_id = msg_ids[-1][0] + msg_ids[-1][1] + 1
-                    photo_num = get_photos_num(soup=soup, msg_id=current_id)
-                    msg_ids.append((current_id, photo_num))
-                else:
-                    photo_num = get_photos_num(soup=soup, msg_id=channel.last_message_id + 1)
-                    msg_ids.append((channel.last_message_id + 1, photo_num))
+            try:
+                for i in range(last_public_message_id - channel.last_message_id - photos_num):  # 1 2 3 4 5 6 7 8 9
+                    if i != 0:
+                        current_id = msg_ids[-1][0] + msg_ids[-1][1] + 1
+                        photo_num = get_photos_num(soup=soup, msg_id=current_id)
+                        msg_ids.append((current_id, photo_num))
+                    else:
+                        photo_num = get_photos_num(soup=soup, msg_id=channel.last_message_id + 1)
+                        msg_ids.append((channel.last_message_id + 1, photo_num))
+            except Exception as e:
+                logger.error(f"Error parsing or updating last message ID (loop error): {e}")
             msg_ids.reverse()
             logger.info(f"New messages id's: {msg_ids}")
 
@@ -123,9 +124,12 @@ def summarize_and_save_messages(db, channel, messages_to_summarize, soup):
             summarized_msg = get_summarized_msg(msg)
             msg_url = f"https://t.me/{channel.telegram_name}/{msg_id}"
             msg_time = get_time(soup=soup, save_msg_id=msg_id-photo_num)
+            wrapped_data = WrappedUrl(id=uuid.uuid4(), url=msg_url)
+            wrapped_url_id = WrappedUrlService.add_wrapped_url(db=db, data=wrapped_data)
             message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, url=msg_url, channel_id=channel.id, sended_at=msg_time)
-            MessageService.add_message(db, message_data)
+                                   summary=summarized_msg, url=msg_url, channel_id=channel.id, sended_at=msg_time,
+                                   wrapped_url_id=wrapped_url_id)
+            MessageService.add_message(db=db, data=message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
         except Exception as e:
             logger.error(f"Error summarizing or saving message [{msg_id}]: {e}")

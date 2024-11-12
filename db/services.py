@@ -1,7 +1,7 @@
 import logging
 
 from db.models import Channels, Messages
-from schemas import Channel, Message
+from schemas import Channel, Message, WrappedUrl
 from logging_config import logger
 
 
@@ -32,3 +32,15 @@ class MessageService:
     @staticmethod
     def get_messages(db):
         return db.query(Messages).all()
+
+
+class WrappedUrlService:
+
+    @staticmethod
+    def add_wrapped_url(db, data: WrappedUrl):
+        new_wrapped_url = WrappedUrl(**data.model_dump())
+        db.add(new_wrapped_url)
+        db.commit()
+        db.refresh(new_wrapped_url)
+        logger.info(f"Wrapped url {new_wrapped_url} saved to DB successfully")
+        return data.id
