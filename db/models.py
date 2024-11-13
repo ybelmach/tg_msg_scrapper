@@ -31,7 +31,6 @@ class Messages(Base):
     telegram_id: Mapped[int | None] = mapped_column(nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(server_default=text("TIMEZONE('utc', now())"))
     summary: Mapped[str] = mapped_column(nullable=False)
-    url: Mapped[str] = mapped_column(nullable=True)  #
     channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('channels.id'), nullable=True)
     sended_at: Mapped[datetime.datetime] = mapped_column(nullable=False)
     wrapped_url_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('wrapped_urls.id'), nullable=True)

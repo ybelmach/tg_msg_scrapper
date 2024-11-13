@@ -17,7 +17,6 @@ class Message(BaseModel):
     telegram_id: int | None = None
     created_at: datetime.datetime
     summary: str
-    url: str  #
     channel_id: uuid.UUID
     sended_at: datetime.datetime
     wrapped_url_id: uuid.UUID

@@ -131,7 +131,7 @@ def summarize_and_save_messages(db, channel, messages_to_summarize, soup):
             wrapped_data = WrappedUrl(id=uuid.uuid4(), url=msg_url)
             wrapped_url_id = WrappedUrlService.add_wrapped_url(db=db, data=wrapped_data)
             message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, url=msg_url, channel_id=channel.id, sended_at=msg_time,
+                                   summary=summarized_msg, channel_id=channel.id, sended_at=msg_time,
                                    wrapped_url_id=wrapped_url_id)
             MessageService.add_message(db=db, data=message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")
