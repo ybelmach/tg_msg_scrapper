@@ -63,7 +63,11 @@ def process_new_messages(db, channel, soup):
             try:
                 for i in range(last_public_message_id - channel.last_message_id - photos_num):  # 1 2 3 4 5 6 7 8 9
                     if i != 0:
-                        current_id = msg_ids[-1][0] + msg_ids[-1][1] + 1
+                        try:
+                            current_id = msg_ids[-1][0] + msg_ids[-1][1] + 1
+                        except IndexError as e:
+                            logger.error(f"ERROR msg_ids index error {e}")
+                            continue
                         photo_num = get_photos_num(soup=soup, msg_id=current_id)
                         msg_ids.append((current_id, photo_num))
                     else:

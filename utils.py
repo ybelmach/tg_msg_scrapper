@@ -116,14 +116,15 @@ def get_summarized_msg(msg: str) -> str:
     """
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
-        prompt = f"""Извлеки суть из текста объемом до {MAX_WORDS_NUM} слов,
-        исключая ссылки и упоминание источника или контекста отправки.
-        
+        prompt = f"""Составь краткий анонс для сообщения ниже, состоящий не более чем из {MAX_WORDS_NUM} слов.
+        Анонс должен давать краткое саммари сообщения, не упуская важные детали.
+        Включи в анонс ключевые факты из сообщения, если нужно.
+        Если в сообщении есть абзац точно и емко описывающий все сообщение, используй его в качестве анонса. 
+
         <message>
-        {msg}
+            {msg}
         </message>
         """
-
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt, }],
             model="gpt-4o-mini",
