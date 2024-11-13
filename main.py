@@ -98,7 +98,8 @@ def process_new_messages(db, channel, soup):
                 # for number in bad_numbers:
                 #     bad_msg_text = get_bad_msg_text(number, msg_url)
                 #     messages_to_summarize.append(bad_msg_text)
-                logger.info(f"New message [{msg_id}] added to list: {msg}")
+                logger.info(f"New message [{msg_id}] added to list: {msg[:5]} ... {msg[:-5:-1]}")
+                logger.info(f"Photos num: {photo_num}")
 
         if messages_to_summarize:
             process = summarize_and_save_messages(db, channel, messages_to_summarize, soup)
@@ -131,7 +132,7 @@ def summarize_and_save_messages(db, channel, messages_to_summarize, soup):
             wrapped_data = WrappedUrl(id=uuid.uuid4(), url=msg_url)
             wrapped_url_id = WrappedUrlService.add_wrapped_url(db=db, data=wrapped_data)
             message_data = Message(id=uuid.uuid4(), telegram_id=msg_id, created_at=datetime.now(),
-                                   summary=summarized_msg, channel_id=channel.id, sended_at=msg_time,
+                                   summary=summarized_msg, channel_id=channel.id, sent_at=msg_time,
                                    wrapped_url_id=wrapped_url_id)
             MessageService.add_message(db=db, data=message_data)
             logger.info(f"Message [{msg_id}] summarized and saved to database.")

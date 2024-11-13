@@ -18,7 +18,7 @@ class Message(BaseModel):
     created_at: datetime.datetime
     summary: str
     channel_id: uuid.UUID
-    sended_at: datetime.datetime
+    sent_at: datetime.datetime
     wrapped_url_id: uuid.UUID
 
 
