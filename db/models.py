@@ -32,5 +32,5 @@ class Messages(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(server_default=text("TIMEZONE('utc', now())"))
     summary: Mapped[str] = mapped_column(nullable=False)
     channel_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('channels.id'), nullable=True)
-    sended_at: Mapped[datetime.datetime] = mapped_column(nullable=False)
+    sent_at: Mapped[datetime.datetime] = mapped_column(nullable=False)
     wrapped_url_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('wrapped_urls.id'), nullable=True)
