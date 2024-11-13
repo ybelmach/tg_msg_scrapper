@@ -92,7 +92,7 @@ def process_new_messages(db, channel, soup):
                     # update_last_message_id(db, channel, last_public_message_id)  # + photo_num
                     continue
                 else:
-                    messages_to_summarize.append((msg_id, msg))
+                    messages_to_summarize.append((photo_num, msg_id, msg))
                 # Реализовать выявление плохих сообщений и их добавление в messages_to_summarize
                 # bad_numbers: List[int] = find_bad_msgs(soup)
                 # for number in bad_numbers:
