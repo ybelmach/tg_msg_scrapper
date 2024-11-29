@@ -7,7 +7,7 @@ from db.models import Channels
 from db.database import get_db
 from db.services import ChannelService, MessageService, WrappedUrlService # noqa
 from logging_config import logger
-from utils import get_last_message_id, get_summarized_msg
+from utils import get_last_message_id, get_summarized_msg, get_bad_msg_text
 from schemas import Channel, Message, WrappedUrl
 import requests
 from bs4 import BeautifulSoup
@@ -61,7 +61,9 @@ def process_new_messages(messages: list, channel: Channel, db):
                 logger.info(f"New message [{msg_id}]: {message[:10]} ... {message[:-10:-1]}")
             except AttributeError:
                 logger.info(f"Got \"bad\" message ({msg_id})")
-                message = ''
+                message = get_bad_msg_text(msg_id, channel.telegram_name)
+                if message is None:
+                    logger.info(f"Didn't got \"bad\" message ({msg_id})")
 
             words_num = len(message.split())
             if words_num < MAX_WORDS_NUM:  # todo: Решить, что делать в таком случае?

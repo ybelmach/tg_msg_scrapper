@@ -22,18 +22,21 @@ def get_last_message_id(messages: list) -> int | None:
         logger.error(f"Error finding the last message: {e}")
 
 
-# todo: Проверить теорию о доступе к сообщению
-def get_bad_msg_text(msg_id: int, msg_url: str) -> str:
+def get_bad_msg_text(msg_id: int, tg_name: str) -> str:
     """
-    Извлекает текст сообщения, если оно не поддерживается в Telegram.
+    Извлекает текст сообщения, если оно не поддерживается в браузере.
     """
     try:
-        ...
+        url = f"https://t.me/{tg_name}/{msg_id}"
+        response = requests.post(url)
+        soup = BeautifulSoup(response.text, 'lxml')
+        message = soup.find('meta', property='og:description').get('content')
+        print(f"Message: {message[:10]}")
+        return message
     except requests.RequestException as e:
         logger.error(f"Connection error while fetching message {msg_id}: {e}")
     except Exception as e:
         logger.error(f"Error parsing message {msg_id}: {e}")
-    return 'test'
 
 
 def get_summarized_msg(msg: str) -> str:

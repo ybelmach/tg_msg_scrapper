@@ -14,6 +14,12 @@ soup = BeautifulSoup(response.text, 'lxml')
 messages = (soup.find_all('section', class_='tgme_channel_history js-message_history')[0]
             .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
 
+msg_id = 367
+url = f"https://t.me/{telegram_name}/{msg_id}"
+response = requests.post(url)
+soup = BeautifulSoup(response.text, 'lxml')
+message = soup.find('meta', property='og:description').get('content')
+print(f"Message: {message}")
 
 
 for index in range(-len(messages), 0):  # noqa
