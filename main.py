@@ -5,17 +5,18 @@ from datetime import datetime
 from config import MAX_WORDS_NUM
 from db.models import Channels
 from db.database import get_db
-from db.services import ChannelService, MessageService, WrappedUrlService # noqa
+from db.services import ChannelService, MessageService, WrappedUrlService  # noqa
 from logging_config import logger
 from utils import get_last_message_id, get_summarized_msg, get_bad_msg_text
 from schemas import Channel, Message, WrappedUrl
 import requests
 from bs4 import BeautifulSoup
 
-# todo: Убрать все noqa
+
+# todo: Убрать все noqa, подумать, что делать с недоступными каналами
 def process_channel(db, channel):
     try:
-        url = f"https://t.me/s/{channel.telegram_name}" # noqa
+        url = f"https://t.me/s/{channel.telegram_name}"  # noqa
         logger.info(f"Processing URL: {url}")
         response = requests.get(url)
         response.raise_for_status()
@@ -24,10 +25,10 @@ def process_channel(db, channel):
         messages = (soup.find_all('section', class_='tgme_channel_history js-message_history')[0]
                     .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
 
-        if channel.last_message_id is None:
-            process_last_message(db, messages, channel)
-        else:
+        if channel.last_message_id is not None:
             process_new_messages(db, channel, soup)
+        else:
+            process_last_message(db, messages, channel)
 
     except requests.RequestException as e:
         logger.error(f"Connection error: {e}")
