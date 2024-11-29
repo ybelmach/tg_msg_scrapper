@@ -1,6 +1,7 @@
 import time
 import uuid
 from datetime import datetime
+from typing import List
 
 from config import MAX_WORDS_NUM
 from db.models import Channels
@@ -22,8 +23,8 @@ def process_channel(db, channel):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'lxml')
 
-        messages = (soup.find_all('section', class_='tgme_channel_history js-message_history')[0]
-                    .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
+        messages: List[str] = (soup.find('section', class_='tgme_channel_history js-message_history')
+                               .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
 
         if channel.last_message_id is not None:
             process_new_messages(db, channel, soup)
