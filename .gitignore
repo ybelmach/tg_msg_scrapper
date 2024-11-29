@@ -1,5 +1,6 @@
 /.venv
 /.idea
 .env
+.env.dev
 __pycache__/
 summarizer_log.log
