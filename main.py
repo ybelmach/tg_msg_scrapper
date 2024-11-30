@@ -27,7 +27,7 @@ def process_channel(db, channel):
                                .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
 
         if channel.last_message_id is not None:
-            process_new_messages(db, channel, soup)
+            process_new_messages(messages, channel, db)
         else:
             process_last_message(db, messages, channel)
 
@@ -52,6 +52,9 @@ def process_new_messages(messages: list, channel: Channel, db):
     try:
         last_message_id = get_last_message_id(messages)
         logger.info(f"Last message in DB: {channel.last_message_id}, new last message: {last_message_id}")
+        if last_message_id <= channel.last_message_id:
+            logger.info("No new messages")
+            return
         for index in range(-len(messages), 0):
             logger.info(f'Message №{index}:')
             msg_id = int(messages[index].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1])

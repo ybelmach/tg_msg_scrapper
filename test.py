@@ -26,7 +26,6 @@ for index in range(-len(messages), 0):  # noqa
     # print(messages[index])
     print(f'index: {index}')
 
-
     try:
         print(messages[index].find('div', class_='tgme_widget_message_text js-message_text').get_text())  # Text
     except AttributeError as e:

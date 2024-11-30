@@ -13,7 +13,7 @@ def get_last_message_id(messages: list) -> int | None:
     """
     try:
         try:
-            last_message_id = messages[-1].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1]
+            last_message_id = int(messages[-1].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1])
         except IndexError:
             last_message_id = 0
         logger.info(f"Last message ID found: {last_message_id}")
