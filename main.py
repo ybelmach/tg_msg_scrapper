@@ -23,8 +23,14 @@ def process_channel(db, channel):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'lxml')
 
-        messages: List[str] = (soup.find('section', class_='tgme_channel_history js-message_history')
-                               .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
+        try:
+            messages: List[str] = (soup.find('section', class_='tgme_channel_history js-message_history')
+                                   .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
+        except AttributeError:
+            logger.error(f"Channel {channel.telegram_name} is unavailable to parse")
+        except Exception as e:
+            logger.error(f"Error while processing channel {channel.telegram_name}: {e}")
+            return
 
         if channel.last_message_id is not None:
             process_new_messages(messages, channel, db)
@@ -56,11 +62,11 @@ def process_new_messages(messages: list, channel: Channel, db):
             logger.info("No new messages")
             return
         for index in range(-len(messages), 0):
-            logger.info(f'Message №{index}:')
             msg_id = int(messages[index].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1])
             if msg_id <= channel.last_message_id:
                 continue
 
+            logger.info(f'Message №{index}:')
             try:
                 message = messages[index].find('div', class_='tgme_widget_message_text js-message_text').get_text()
                 logger.info(f"New message [{msg_id}]: {message[:10]} ... {message[:-10:-1]}")
