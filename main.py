@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 from typing import List
 
+from openai import RateLimitError
+
 from config import MAX_WORDS_NUM
 from db.models import Channels
 from db.database import get_db
@@ -101,6 +103,8 @@ def summarize_and_save_messages(db, channel: Channel, message: str, msg_id: int,
                                wrapped_url_id=wrapped_url_id)
         MessageService.add_message(db=db, data=message_data)
         logger.info(f"Message [{msg_id}] summarized and saved to database.")
+    except RateLimitError:
+        logger.error(f"OpenAPI billing error. Please pay for using gpt")
     except Exception as e:
         logger.error(f"Error summarizing or saving message [{msg_id}]: {e}")
 
