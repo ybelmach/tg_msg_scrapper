@@ -1,42 +1,40 @@
-from datetime import datetime
+from llama_cpp import Llama
 
-import requests
-from bs4 import BeautifulSoup
+llm = Llama.from_pretrained(
+    repo_id="QuantFactory/Phi-3-mini-128k-instruct-GGUF",
+    filename="Phi-3-mini-128k-instruct.Q4_K_M.gguf",
+    verbose=False
+)
 
-telegram_name = 'jsvdoodhrllr'
+msg = """Номады, общий сбор! 🚨 Тут представили (https://www.tomsguide.com/computing/peripherals/this-suitcase-transforms-into-a-dual-display-workstation-and-im-shocked-how-well-it-works) переносную рабочую станцию с двумя мониторами — Base Case.
 
-url = f"https://t.me/s/{telegram_name}" # noqa
-print(f"Processing URL: {url}")
-response = requests.get(url)
-response.raise_for_status()
-soup = BeautifulSoup(response.text, 'lxml')
+Устройство оснащено двумя дисплеями с разрешением Full HD (1920×1080) и ножками, которые поднимают мониторы на 25 см.
 
-messages = (soup.find_all('section', class_='tgme_channel_history js-message_history')[0]
-            .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
+И вся эта конструкция складывается в виде чемодана с выдвижной ручкой и колесиками. Весит чудо 9 кг, так что в ручную кладь пройдет, но тщательные проверки в аэропорту — гарантированы.
 
-msg_id = 367
-url = f"https://t.me/{telegram_name}/{msg_id}"
-response = requests.post(url)
-soup = BeautifulSoup(response.text, 'lxml')
-message = soup.find('meta', property='og:description').get('content')
-print(f"Message: {message}")
+Цена неизвестна, но
+продажи запланированы на февраль через платформу Indiegogo.
+
+@xor_journal"""
 
 
-for index in range(-len(messages), 0):  # noqa
-    # print(messages[index])
-    print(f'index: {index}')
+prompt = f"""Составь краткий анонс для сообщения ниже, состоящий не более чем из {25} слов.
+        Анонс должен давать краткое саммари сообщения, не упуская важные детали.
+        Включи в анонс ключевые факты из сообщения, если нужно.
+        Если в сообщении есть абзац точно и емко описывающий все сообщение, используй его в качестве анонса. 
 
-    try:
-        print(messages[index].find('div', class_='tgme_widget_message_text js-message_text').get_text())  # Text
-    except AttributeError as e:
-        print("Message only can be view in telegram")
+        <message>
+            {msg}
+        </message>
+        """
 
-    print(int(messages[index].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1]))  # msg_id
+response = llm.create_chat_completion(
+    messages=[
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+)
 
-    print(datetime.fromisoformat(messages[index].find('time', class_='time').get('datetime')))  # datetime
-    print()
-
-try:
-    print(messages[-1].find('a', class_='tgme_widget_message_date').get('href').split('/')[-1])  # Last msg id
-except IndexError as e:
-    print("Channel haven't got any messages.")
+print(f"Response: {response['choices'][0]['message']['content']}".lstrip())

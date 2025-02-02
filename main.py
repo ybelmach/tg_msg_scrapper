@@ -30,6 +30,7 @@ def process_channel(db, channel):
                                    .find_all('div', class_='tgme_widget_message_wrap js-widget_message_wrap'))
         except AttributeError:
             logger.error(f"Channel {channel.telegram_name} is unavailable to parse")
+            return 
         except Exception as e:
             logger.error(f"Error while processing channel {channel.telegram_name}: {e}")
             return
@@ -79,7 +80,7 @@ def process_new_messages(messages: list, channel: Channel, db):
                     logger.info(f"Didn't got \"bad\" message ({msg_id})")
 
             words_num = len(message.split())
-            if words_num < MAX_WORDS_NUM:  # todo: Решить, что делать в таком случае?
+            if words_num < MAX_WORDS_NUM:  # todo: Решить, что делать в таком случае?, сохранение нового id
                 logger.info(f"Message {msg_id} didn't add to DB (words_num={words_num})")
                 continue
 
@@ -120,20 +121,24 @@ def update_last_message_id(db, channel: Channel, last_public_message_id: int):
 
 
 def main():
-    try:
-        with next(get_db()) as db:
-            channels = db.query(Channels).all()
-    except Exception as e:
-        logger.error(f"Error fetching channels from database: {e}")
     while True:
         try:
             logger.info("Starting a task...\n")
+            # Получение списка каналов из базы данных
+            with next(get_db()) as db:
+                channels = db.query(Channels).all()
+
             # Вызов основной логики
             for channel in channels:
-                process_channel(db, channel)
-                print()  #
+                try:
+                    # Открываем новое подключение к базе данных для каждого канала
+                    with next(get_db()) as db:
+                        process_channel(db, channel)
+                        print()  #
+                except Exception as e:
+                    logger.error(f"Error processing channel {channel}: {e}")
         except Exception as e:
-            logger.error(f"Task execution error: {e}")
+            logger.error(f"Error during task execution: {e}")
 
         logger.info("Waiting for next launch in 1 hour...")
         time.sleep(900)
